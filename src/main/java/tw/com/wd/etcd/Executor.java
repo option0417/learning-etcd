@@ -1,42 +1,62 @@
 package tw.com.wd.etcd;
 
-import io.etcd.jetcd.ByteSequence;
 import io.etcd.jetcd.Client;
-import io.etcd.jetcd.KV;
-import io.etcd.jetcd.kv.GetResponse;
+import io.etcd.jetcd.cluster.Member;
 
-import java.util.concurrent.CompletableFuture;
+import java.net.URI;
+import java.util.List;
 
 
 public class Executor {
-    private static final String ETCD_NODE_0 = "http://127.0.0.1:2379";
+    private static final String ETCD_NODE_0 = "http://127.0.0.1:2370";
+    private static final String ETCD_NODE_1 = "http://127.0.0.1:2380";
+    private static final String ETCD_NODE_2 = "http://127.0.0.1:2390";
 
     public static void main(String[] args) throws Exception {
         // create client using endpoints
-        Client client = Client.builder().endpoints(ETCD_NODE_0).build();
+        Client client = Client
+            .builder()
+            .endpoints(ETCD_NODE_0, ETCD_NODE_1, ETCD_NODE_2)
+            .build();
 
-        KV kvClient = client.getKVClient();
-        ByteSequence key = ByteSequence.from("test_key".getBytes());
-        ByteSequence value = ByteSequence.from("test_value".getBytes());
+        KVService kvService = new KVService(client.getKVClient());
 
-        // put the key-value
-        kvClient.put(key, value).get();
+        System.out.println("Start");
+        for (int cnt = 0; cnt < 10000; cnt++) {
+            kvService.put("k01".getBytes(), ("v" + cnt).getBytes());
+        }
 
-        // get the CompletableFuture
-        CompletableFuture<GetResponse> getFuture = kvClient.get(key);
+        Thread.sleep(1000L);
+        kvService.put("k02".getBytes(), "v04".getBytes());
+        Thread.sleep(1000L);
+        kvService.put("k03".getBytes(), "v05".getBytes());
 
-        // get the value from CompletableFuture
-        GetResponse response = getFuture.get();
 
-        System.out.printf("KV count: %d\n", response.getCount());
-        System.out.printf("Key: %s, Value: %s\n",
-                          response.getKvs().get(0).getKey().toString(),
-                          response.getKvs().get(0).getValue().toString());
-        System.out.printf("ClusterId: %d\n", response.getHeader().getClusterId());
-        System.out.printf("MemberId: %d\n", response.getHeader().getMemberId());
-        System.out.printf("RaftTerm: %d\n", response.getHeader().getRaftTerm());
-        System.out.printf("Revision: %d\n", response.getHeader().getRevision());
+        // client.getKVClient().delete(ByteSequence.from("k01".getBytes())).get();
 
+        List<Member> memberList = client.getClusterClient().listMember().get().getMembers();
+        System.out.printf("ClusterMember Size: %d\n", memberList.size());
+
+        for (Member member : memberList) {
+            System.out.printf("MemberID: %d\n", member
+                .getId());
+            System.out.printf("MemberName: %s\n", member
+                .getName());
+
+            System.out.printf("--- PeerURIs ---\n");
+            for (URI uri : member
+                .getPeerURIs()) {
+                System.out.printf("URI: %s\n", uri.toString());
+            }
+
+            System.out.printf("\n");
+
+            System.out.printf("--- ClientURIs ---\n");
+            for (URI uri : member
+                .getClientURIs()) {
+                System.out.printf("URI: %s\n", uri.toString());
+            }
+        }
         client.close();
     }
 }
