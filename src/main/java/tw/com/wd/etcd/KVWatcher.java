@@ -66,9 +66,10 @@ public class KVWatcher {
 
 
     public static void main(String[] args) throws Exception {
-        Client client = Client.builder().endpoints("http://127.0.0.1:2369", "http://127.0.0.1:2379", "http://127.0.0.1:2389").build();
+        //Client client = Client.builder().endpoints("http://127.0.0.1:2369", "http://127.0.0.1:2379", "http://127.0.0.1:2389").build();
+        Client client = Client.builder().endpoints("http://127.0.0.1:2379").build();
 
         KVWatcher kvWatcher = new KVWatcher(client.getWatchClient());
-        kvWatcher.startWatcher("k03".getBytes());
+        kvWatcher.startWatcher("Update".getBytes());
     }
 }
